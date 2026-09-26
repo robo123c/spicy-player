@@ -3,16 +3,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// Force Wayland/X11 compatibility - MUST be before electron import
 const electron_1 = require("electron");
+electron_1.app.commandLine.appendSwitch('ozone-platform', 'x11');
+electron_1.app.commandLine.appendSwitch('disable-gpu');
+electron_1.app.commandLine.appendSwitch('disable-gpu-sandbox');
+electron_1.app.commandLine.appendSwitch('no-sandbox');
+const electron_2 = require("electron");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const promises_1 = require("fs/promises");
 const axios_1 = __importDefault(require("axios"));
 const music_metadata_1 = require("music-metadata");
-// Force SwiftShader software rendering for Wayland
-electron_1.app.commandLine.appendSwitch('use-gl', 'swiftshader');
-electron_1.app.commandLine.appendSwitch('disable-gpu', 'false');
-electron_1.app.commandLine.appendSwitch('ozone-platform', 'x11');
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPICY_API = 'https://api.spicylyrics.org/v1/lyrics';
 const CONFIG_FILE = path_1.default.join(electron_1.app.getPath('userData'), 'config.json');
@@ -64,9 +66,9 @@ async function getSpotifyToken() {
         return null;
     }
 }
-electron_1.ipcMain.handle('open-file-dialog', async () => {
+electron_2.ipcMain.handle('open-file-dialog', async () => {
     console.log('[main] open-file-dialog invoked');
-    const result = await electron_1.dialog.showOpenDialog({
+    const result = await electron_2.dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
         filters: [
             { name: 'Audio', extensions: ['mp3', 'flac', 'm4a', 'wav', 'ogg', 'wma'] },
@@ -81,9 +83,9 @@ electron_1.ipcMain.handle('open-file-dialog', async () => {
     console.log('[main] selected files:', result.filePaths);
     return result.filePaths;
 });
-electron_1.ipcMain.handle('open-directory-dialog', async () => {
+electron_2.ipcMain.handle('open-directory-dialog', async () => {
     console.log('[main] open-directory-dialog invoked');
-    const result = await electron_1.dialog.showOpenDialog({
+    const result = await electron_2.dialog.showOpenDialog({
         properties: ['openDirectory', 'createDirectory'],
     });
     console.log('[main] directory dialog result:', result);
@@ -94,7 +96,7 @@ electron_1.ipcMain.handle('open-directory-dialog', async () => {
     console.log('[main] selected directory:', result.filePaths);
     return result.filePaths;
 });
-electron_1.ipcMain.handle('read-directory', async (_event, dirPath) => {
+electron_2.ipcMain.handle('read-directory', async (_event, dirPath) => {
     console.log('[main] read-directory invoked for:', dirPath);
     try {
         const entries = await (0, promises_1.readdir)(dirPath, { withFileTypes: true });
@@ -110,7 +112,7 @@ electron_1.ipcMain.handle('read-directory', async (_event, dirPath) => {
         return [];
     }
 });
-electron_1.ipcMain.handle('get-track-metadata', async (_event, filePath) => {
+electron_2.ipcMain.handle('get-track-metadata', async (_event, filePath) => {
     try {
         const metadata = await (0, music_metadata_1.parseFile)(filePath, { skipPostHeaders: true, skipCovers: false });
         const pic = metadata.common.picture?.[0];
@@ -128,7 +130,7 @@ electron_1.ipcMain.handle('get-track-metadata', async (_event, filePath) => {
         return null;
     }
 });
-electron_1.ipcMain.handle('spotify:search', async (_event, query, durationMs) => {
+electron_2.ipcMain.handle('spotify:search', async (_event, query, durationMs) => {
     const token = await getSpotifyToken();
     if (!token)
         return null;
@@ -152,7 +154,7 @@ electron_1.ipcMain.handle('spotify:search', async (_event, query, durationMs) =>
         return null;
     }
 });
-electron_1.ipcMain.handle('spicylyrics:lyrics', async (_event, trackId) => {
+electron_2.ipcMain.handle('spicylyrics:lyrics', async (_event, trackId) => {
     const apiKey = process.env.SPICY_LYRICS_API_KEY || loadConfig().spicyLyricsKey;
     if (!apiKey) {
         console.error('[main] SPICY_LYRICS_API_KEY not set');
@@ -172,14 +174,14 @@ electron_1.ipcMain.handle('spicylyrics:lyrics', async (_event, trackId) => {
         return null;
     }
 });
-electron_1.ipcMain.handle('config:get', () => loadConfig());
-electron_1.ipcMain.handle('config:set', (_event, config) => {
+electron_2.ipcMain.handle('config:get', () => loadConfig());
+electron_2.ipcMain.handle('config:set', (_event, config) => {
     saveConfig(config);
     return true;
 });
 function createWindow() {
     const savedBounds = loadBounds();
-    const win = new electron_1.BrowserWindow({
+    const win = new electron_2.BrowserWindow({
         width: savedBounds?.width || 1400,
         height: savedBounds?.height || 850,
         x: savedBounds?.x,
@@ -213,23 +215,23 @@ electron_1.app.whenReady().then(() => {
     createWindow();
     // Register global media keys
     const registerMediaKeys = () => {
-        electron_1.globalShortcut.register('MediaPlayPause', () => {
-            const win = electron_1.BrowserWindow.getAllWindows()[0];
+        electron_2.globalShortcut.register('MediaPlayPause', () => {
+            const win = electron_2.BrowserWindow.getAllWindows()[0];
             if (win)
                 win.webContents.send('media-key:playpause');
         });
-        electron_1.globalShortcut.register('MediaNextTrack', () => {
-            const win = electron_1.BrowserWindow.getAllWindows()[0];
+        electron_2.globalShortcut.register('MediaNextTrack', () => {
+            const win = electron_2.BrowserWindow.getAllWindows()[0];
             if (win)
                 win.webContents.send('media-key:next');
         });
-        electron_1.globalShortcut.register('MediaPreviousTrack', () => {
-            const win = electron_1.BrowserWindow.getAllWindows()[0];
+        electron_2.globalShortcut.register('MediaPreviousTrack', () => {
+            const win = electron_2.BrowserWindow.getAllWindows()[0];
             if (win)
                 win.webContents.send('media-key:prev');
         });
-        electron_1.globalShortcut.register('MediaStop', () => {
-            const win = electron_1.BrowserWindow.getAllWindows()[0];
+        electron_2.globalShortcut.register('MediaStop', () => {
+            const win = electron_2.BrowserWindow.getAllWindows()[0];
             if (win)
                 win.webContents.send('media-key:stop');
         });
@@ -238,10 +240,10 @@ electron_1.app.whenReady().then(() => {
     // Re-register on focus (some OS unregister when app loses focus)
     electron_1.app.on('browser-window-focus', registerMediaKeys);
 });
-electron_1.app.on('activate', () => { if (electron_1.BrowserWindow.getAllWindows().length === 0)
+electron_1.app.on('activate', () => { if (electron_2.BrowserWindow.getAllWindows().length === 0)
     createWindow(); });
 electron_1.app.on('window-all-closed', () => {
-    electron_1.globalShortcut.unregisterAll();
+    electron_2.globalShortcut.unregisterAll();
     if (process.platform !== 'darwin')
         electron_1.app.quit();
 });

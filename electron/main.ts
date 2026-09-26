@@ -1,18 +1,16 @@
-import { app, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron';
+// Force Wayland/X11 compatibility - MUST be before electron import
+import { app } from 'electron';
+app.commandLine.appendSwitch('ozone-platform', 'x11');
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+app.commandLine.appendSwitch('no-sandbox');
+
+import { BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron';
 import path from 'path';
 import fs from 'fs'
 import { readdir, stat } from 'fs/promises';
 import axios from 'axios';
 import { parseFile } from 'music-metadata';
-
-
-
-
-// Force SwiftShader software rendering for Wayland
-app.commandLine.appendSwitch('use-gl', 'swiftshader');
-app.commandLine.appendSwitch('disable-gpu', 'false');
-app.commandLine.appendSwitch('ozone-platform', 'x11');
-
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPICY_API = 'https://api.spicylyrics.org/v1/lyrics';
@@ -25,28 +23,28 @@ function loadConfig(): Record<string, string> {
       return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
     }
   } catch {}
-  return {};
+  return {}
 }
 
 function saveConfig(config: Record<string, string>) {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
 }
 
 function loadBounds(): { width: number; height: number; x?: number; y?: number } | null {
   try {
     if (fs.existsSync(BOUNDS_FILE)) {
-      return JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf-8'));
+      return JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf-8'))
     }
   } catch {}
-  return null;
+  return null
 }
 
 function saveBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
-  fs.writeFileSync(BOUNDS_FILE, JSON.stringify(bounds, null, 2));
+  fs.writeFileSync(BOUNDS_FILE, JSON.stringify(bounds, null, 2))
 }
 
-let spotifyToken: string | null = null;
-let spotifyTokenExpiry = 0;
+let spotifyToken: string | null = null
+let spotifyTokenExpiry = 0
 
 async function getSpotifyToken(): Promise<string | null> {
   if (spotifyToken && Date.now() < spotifyTokenExpiry) return spotifyToken;
