@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs'
+import { readdir, stat } from 'fs/promises';
 import axios from 'axios';
 import { parseFile } from 'music-metadata';
 
@@ -68,6 +69,38 @@ ipcMain.handle('open-file-dialog', async () => {
   }
   console.log('[main] selected files:', result.filePaths);
   return result.filePaths;
+});
+
+ipcMain.handle('open-directory-dialog', async () => {
+  console.log('[main] open-directory-dialog invoked');
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  console.log('[main] directory dialog result:', result);
+  if (result.canceled) {
+    console.log('[main] directory dialog canceled');
+    return [];
+  }
+  console.log('[main] selected directory:', result.filePaths);
+  return result.filePaths;
+});
+
+
+
+ipcMain.handle('read-directory', async (_event, dirPath: string) => {
+  console.log('[main] read-directory invoked for:', dirPath);
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    return entries.map(entry => ({
+      name: entry.name,
+      path: path.join(dirPath, entry.name),
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    }));
+  } catch (err) {
+    console.error('[main] read-directory error:', err);
+    return [];
+  }
 });
 
 ipcMain.handle('get-track-metadata', async (_event, filePath: string) => {

@@ -8,6 +8,7 @@ interface TrackListProps {
   currentTrackId: string | null;
   onSelect: (track: TrackInfo) => void;
   onLoadFiles: () => void;
+  onLoadFolder: () => void;
 }
 
 export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles }) => {
@@ -25,9 +26,14 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
       <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <h2 style={{ fontSize: '0.875rem', fontWeight: 600 }}>Your Library</h2>
-          <button className="ctrl-btn" onClick={onLoadFiles} style={{ width: 32, height: 32 }}>
-            <IconFolder stroke={2} size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="ctrl-btn" onClick={onLoadFiles} style={{ width: 32, height: 32 }} title="Load Audio Files">
+              <IconFolder stroke={2} size={16} />
+            </button>
+            <button className="ctrl-btn" onClick={onLoadFolder} style={{ width: 32, height: 32 }} title="Load Folder">
+              <IconFolder stroke={2} size={16} />
+            </button>
+          </div>
         </div>
         <div style={{ position: 'relative' }}>
           <IconSearch stroke={2} size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
@@ -56,21 +62,37 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
           <div className="empty-state" style={{ padding: '2rem' }}>
             <IconMusic stroke={2} size={32} />
             <p className="text-sm">No tracks loaded</p>
-            <button
-              onClick={onLoadFiles}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.5rem 1rem',
-                borderRadius: 8,
-                background: 'rgba(139,92,246,0.2)',
-                color: '#8b5cf6',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-              }}
-            >
-              Load Audio Files
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={onLoadFiles}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  background: 'rgba(139,92,246,0.2)',
+                  color: '#8b5cf6',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
+              >
+                Load Audio Files
+              </button>
+              <button
+                onClick={onLoadFolder}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: 8,
+                  background: 'rgba(139,92,246,0.2)',
+                  color: '#8b5cf6',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
+              >
+                Load Music Folder
+              </button>
+            </div>
           </div>
         ) : (
           filtered.map((track) => (

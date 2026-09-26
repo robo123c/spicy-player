@@ -48,6 +48,59 @@ export default function App() {
     }
   }, [audio]);
 
+  const loadFolder = useCallback(async () => {
+    console.log('[renderer] loadFolder called');
+    const paths = await (window as any).electron?.invoke?.('open-directory-dialog');
+    console.log('[renderer] directory dialog returned:', paths);
+    if (!paths || paths.length === 0) {
+      console.log('[renderer] no directory selected');
+      return;
+    }
+    const folderPath = paths[0];
+    
+    // Recursively find all audio files in the folder
+    const findAudioFiles = async (dir: string): Promise<string[]> => {
+      const entries = await (window as any).electron?.invoke?.('read-directory', dir);
+      if (!entries) return [];
+      const audioFiles: string[] = [];
+      for (const entry of entries) {
+        const fullPath = entry.path || entry;
+        if (entry.isDirectory) {
+          const nested = await findAudioFiles(fullPath);
+          audioFiles.push(...nested);
+        } else if (entry.isFile && /\.(mp3|flac|m4a|wav|ogg|wma)$/i.test(fullPath)) {
+          audioFiles.push(fullPath);
+        }
+      }
+      return audioFiles;
+    };
+    
+    const audioFiles = await findAudioFiles(folderPath);
+    if (audioFiles.length === 0) {
+      console.log('[renderer] no audio files found in folder');
+      return;
+    }
+    
+    const newTracks: TrackInfo[] = [];
+    for (const filePath of audioFiles) {
+      const meta = await (window as any).electron?.invoke?.('get-track-metadata', filePath);
+      if (meta) {
+        newTracks.push({ ...meta, localPath: filePath });
+      }
+    }
+    
+    setTracks((prev) => [...newTracks, ...prev]);
+    
+    if (newTracks.length > 0 && !audio.currentTrack) {
+      const first = newTracks[0];
+      setCurrentTrackId(first.id || first.filePath || '');
+      audio.loadTrack(first);
+      audio.play();
+      fetchLyricsForTrack({ title: first.title, artist: first.artist, duration: first.duration });
+    }
+  }, [audio, fetchLyricsForTrack]);
+
+
   const selectTrack = useCallback((track: TrackInfo) => {
     setCurrentTrackId(track.id || track.filePath || '');
     audio.unload();
