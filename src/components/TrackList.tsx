@@ -11,7 +11,7 @@ interface TrackListProps {
   onLoadFolder: () => void;
 }
 
-export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles }) => {
+export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder }) => {
   const [query, setQuery] = useState('');
 
   const filtered = query
