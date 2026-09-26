@@ -3,13 +3,14 @@
   "name": "spicy-player",
   "version": "1.0.0",
   "description": "A music player with word-synced lyrics from the Spicy Lyrics API",
-  "main": "electron/main.ts",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\"",
     "dev:electron": "npm run dev & electron .",
-    "build": "tsc && vite build && electron-builder",
+    "build": "npx tsc electron/main.ts electron/preload.ts --outDir electron --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck && node node_modules/.bin/vite build && electron-builder",
     "preview": "vite preview",
-    "dist": "vite build && electron-builder"
+    "dist": "vite build && electron-builder",
+    "prebuild": "npx tsc electron/preload.ts --outDir electron --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck"
   },
   "author": "spicy-player contributors",
   "license": "MIT",

@@ -53,6 +53,7 @@ async function getSpotifyToken(): Promise<string | null> {
 }
 
 ipcMain.handle('open-file-dialog', async () => {
+  console.log('[main] open-file-dialog invoked');
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [
@@ -60,6 +61,12 @@ ipcMain.handle('open-file-dialog', async () => {
       { name: 'All Files', extensions: ['*'] },
     ],
   });
+  console.log('[main] dialog result:', result);
+  if (result.canceled) {
+    console.log('[main] dialog canceled');
+    return [];
+  }
+  console.log('[main] selected files:', result.filePaths);
   return result.filePaths;
 });
 

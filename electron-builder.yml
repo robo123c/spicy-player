@@ -8,14 +8,14 @@ files:
   - electron/**/*
   - package.json
 extraMetadata:
-  main: electron/main.ts
+  main: electron/main.js
 mac:
   category: public.app-category.music
   target: dmg
 linux:
   target: AppImage
   category: AudioVideo
-  mime:
+  mimeTypes:
     - audio/mpeg
     - audio/ogg
     - audio/flac

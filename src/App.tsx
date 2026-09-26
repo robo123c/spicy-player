@@ -21,8 +21,13 @@ export default function App() {
   });
 
   const loadFiles = useCallback(async () => {
+    console.log('[renderer] loadFiles called');
     const paths = await (window as any).electron?.invoke?.('open-file-dialog');
-    if (!paths || paths.length === 0) return;
+    console.log('[renderer] dialog returned:', paths);
+    if (!paths || paths.length === 0) {
+      console.log('[renderer] no paths selected');
+      return;
+    }
 
     const newTracks: TrackInfo[] = [];
     for (const filePath of paths) {
