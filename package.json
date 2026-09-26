@@ -1,0 +1,50 @@
+{
+  "type": "module",
+  "name": "spicy-player",
+  "version": "1.0.0",
+  "description": "A music player with word-synced lyrics from the Spicy Lyrics API",
+  "main": "electron/main.ts",
+  "scripts": {
+    "dev": "concurrently \"vite\"",
+    "dev:electron": "npm run dev & electron .",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "dist": "vite build && electron-builder"
+  },
+  "author": "spicy-player contributors",
+  "license": "MIT",
+  "dependencies": {
+    "@tabler/icons-react": "^3.48.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "axios": "^1.20.0",
+    "concurrently": "^9.1.2",
+    "express": "^5.0.6",
+    "framer-motion": "^11.16.1",
+    "howler": "^2.2.4",
+    "music-metadata": "^10.0.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-jsx-runtime": "^1.0.0-alpha.1",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@electron/remote": ">=2.0.0",
+    "@types/express": "^5.0.0",
+    "@types/howler": "^2.2.12",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "axios": ">=1.6.0",
+    "concurrently": ">=9.0.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^25.1.5",
+    "framer-motion": ">=11.0.0",
+    "music-metadata": ">=10.0.0",
+    "tailwindcss": "^4.1.10",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,24 @@
+appId: com.spicyplayer.spicy-player
+productName: SpicyPlayer
+directories:
+  output: dist
+  buildResources: build
+files:
+  - build/**/*
+  - electron/**/*
+  - package.json
+extraMetadata:
+  main: electron/main.ts
+mac:
+  category: public.app-category.music
+  target: dmg
+linux:
+  target: AppImage
+  category: AudioVideo
+  mime:
+    - audio/mpeg
+    - audio/ogg
+    - audio/flac
+    - audio/wav
+win:
+  target: nsis
