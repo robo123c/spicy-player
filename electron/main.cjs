@@ -16,6 +16,7 @@ electron_1.app.commandLine.appendSwitch('ozone-platform', 'x11');
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPICY_API = 'https://api.spicylyrics.org/v1/lyrics';
 const CONFIG_FILE = path_1.default.join(electron_1.app.getPath('userData'), 'config.json');
+const BOUNDS_FILE = path_1.default.join(electron_1.app.getPath('userData'), 'window-bounds.json');
 function loadConfig() {
     try {
         if (fs_1.default.existsSync(CONFIG_FILE)) {
@@ -27,6 +28,18 @@ function loadConfig() {
 }
 function saveConfig(config) {
     fs_1.default.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+function loadBounds() {
+    try {
+        if (fs_1.default.existsSync(BOUNDS_FILE)) {
+            return JSON.parse(fs_1.default.readFileSync(BOUNDS_FILE, 'utf-8'));
+        }
+    }
+    catch { }
+    return null;
+}
+function saveBounds(bounds) {
+    fs_1.default.writeFileSync(BOUNDS_FILE, JSON.stringify(bounds, null, 2));
 }
 let spotifyToken = null;
 let spotifyTokenExpiry = 0;
@@ -165,9 +178,12 @@ electron_1.ipcMain.handle('config:set', (_event, config) => {
     return true;
 });
 function createWindow() {
+    const savedBounds = loadBounds();
     const win = new electron_1.BrowserWindow({
-        width: 1400,
-        height: 850,
+        width: savedBounds?.width || 1400,
+        height: savedBounds?.height || 850,
+        x: savedBounds?.x,
+        y: savedBounds?.y,
         minWidth: 900,
         minHeight: 600,
         backgroundColor: '#0a0a0a',
@@ -179,6 +195,13 @@ function createWindow() {
             nodeIntegration: false,
         },
     });
+    // Save window bounds on resize/move
+    const saveWindowBounds = () => {
+        const bounds = win.getBounds();
+        saveBounds(bounds);
+    };
+    win.on('resize', saveWindowBounds);
+    win.on('move', saveWindowBounds);
     const startUrl = process.env.NODE_ENV === 'development'
         ? 'http://localhost:5173'
         : `file://${path_1.default.join(__dirname, '../build/index.html')}`;
@@ -186,8 +209,39 @@ function createWindow() {
     if (process.env.NODE_ENV === 'development')
         win.webContents.openDevTools({ mode: 'detach' });
 }
-electron_1.app.whenReady().then(createWindow);
+electron_1.app.whenReady().then(() => {
+    createWindow();
+    // Register global media keys
+    const registerMediaKeys = () => {
+        electron_1.globalShortcut.register('MediaPlayPause', () => {
+            const win = electron_1.BrowserWindow.getAllWindows()[0];
+            if (win)
+                win.webContents.send('media-key:playpause');
+        });
+        electron_1.globalShortcut.register('MediaNextTrack', () => {
+            const win = electron_1.BrowserWindow.getAllWindows()[0];
+            if (win)
+                win.webContents.send('media-key:next');
+        });
+        electron_1.globalShortcut.register('MediaPreviousTrack', () => {
+            const win = electron_1.BrowserWindow.getAllWindows()[0];
+            if (win)
+                win.webContents.send('media-key:prev');
+        });
+        electron_1.globalShortcut.register('MediaStop', () => {
+            const win = electron_1.BrowserWindow.getAllWindows()[0];
+            if (win)
+                win.webContents.send('media-key:stop');
+        });
+    };
+    registerMediaKeys();
+    // Re-register on focus (some OS unregister when app loses focus)
+    electron_1.app.on('browser-window-focus', registerMediaKeys);
+});
 electron_1.app.on('activate', () => { if (electron_1.BrowserWindow.getAllWindows().length === 0)
     createWindow(); });
-electron_1.app.on('window-all-closed', () => { if (process.platform !== 'darwin')
-    electron_1.app.quit(); });
+electron_1.app.on('window-all-closed', () => {
+    electron_1.globalShortcut.unregisterAll();
+    if (process.platform !== 'darwin')
+        electron_1.app.quit();
+});
