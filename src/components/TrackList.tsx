@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { IconMusic, IconSearch, IconX, IconFolder } from '@tabler/icons-react';
 import type { TrackInfo } from '@/types';
+import { useReducedMotion, getSpring } from '@/lib/motion';
 
 interface TrackListProps {
   tracks: TrackInfo[];
@@ -59,41 +60,78 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
       {/* Track list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
         {filtered.length === 0 ? (
-          <div className="empty-state" style={{ padding: '2rem' }}>
-            <IconMusic stroke={2} size={32} />
-            <p className="text-sm">No tracks loaded</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                onClick={onLoadFiles}
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  borderRadius: 8,
-                  background: 'rgba(139,92,246,0.2)',
-                  color: '#8b5cf6',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                }}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="empty-state"
+              className="empty-state"
+              style={{ padding: '2rem' }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={getSpring('slower', useReducedMotion())}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={getSpring('slower', useReducedMotion())}
               >
-                Load Audio Files
-              </button>
-              <button
-                onClick={onLoadFolder}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: 8,
-                  background: 'rgba(139,92,246,0.2)',
-                  color: '#8b5cf6',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                }}
+                <IconMusic stroke={2} size={32} />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={getSpring('slower', useReducedMotion())}
+                className="text-sm"
               >
-                Load Music Folder
-              </button>
-            </div>
-          </div>
+                No tracks loaded
+              </motion.p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <motion.button
+                  onClick={onLoadFiles}
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: 8,
+                    background: 'rgba(139,92,246,0.2)',
+                    color: '#8b5cf6',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                  }}
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{
+                    ...getSpring('slow', useReducedMotion()),
+                    delay: 0.06,
+                    damping: 0.8, // Pop feel for delight
+                  }}
+                >
+                  Load Audio Files
+                </motion.button>
+                <motion.button
+                  onClick={onLoadFolder}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: 8,
+                    background: 'rgba(139,92,246,0.2)',
+                    color: '#8b5cf6',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                  }}
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{
+                    ...getSpring('slow', useReducedMotion()),
+                    delay: 0.12,
+                    damping: 0.8,
+                  }}
+                >
+                  Load Music Folder
+                </motion.button>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         ) : (
           filtered.map((track) => (
             <motion.div

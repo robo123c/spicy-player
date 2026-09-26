@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LyricLine, LyricWord, WordStatus, AttributionInfo } from '@/lib/lyricsParser';
 import { computeWordStyle, findActiveLineIndex } from '@/lib/lyricsParser';
+import { useReducedMotion, getSpring } from '@/lib/motion';
 
 interface LyricsViewProps {
   lines: LyricLine[];
@@ -41,20 +42,38 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
           const isPreActive = idx === activeIndex - 1;
           const isPlayed = idx < activeIndex;
 
-          return (
+          // Spring configs
+        const lineSpring = getSpring('slow', useReducedMotion());
+        const scaleSpring = getSpring('base', useReducedMotion());
+        
+        // Differentiated initial states
+        const initial = isPlayed 
+          ? { opacity: 0.3, y: 0, scale: 1 }
+          : { opacity: 0, y: 8, scale: 0.98 };
+        
+        const animate = isActive
+          ? { opacity: 1, y: 0, scale: 1.02 }
+          : isPlayed
+            ? { opacity: 0.3, y: 0, scale: 1 }
+            : { opacity: 0.6, y: 0, scale: 1 };
+        
+        const exit = { opacity: 0, y: -8, scale: 0.98 };
+
+        return (
             <motion.div
               key={idx}
               className="lyric-line"
               onClick={() => {
                 onSeek?.(line.startTime);
               }}
-              initial={{ opacity: isPlayed ? 0.3 : 0.6, y: 0 }}
-              animate={{
-                opacity: isActive ? 1 : isPlayed ? 0.3 : 0.6,
-                y: isActive ? 0 : 0,
-                scale: isActive ? 1.02 : 1,
+              initial={initial}
+              animate={animate}
+              exit={exit}
+              transition={{
+                opacity: lineSpring,
+                y: lineSpring,
+                scale: scaleSpring,
               }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ paddingLeft: '0.5em', paddingRight: '0.5em' }}
             >
               <motion.p
@@ -85,7 +104,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
                         filter: `blur(${style.blur}px)`,
                         opacity: style.opacity,
                       }}
-                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      transition={(() => {
+                        const reduced = useReducedMotion();
+                        const wordSpring = getSpring('base', reduced);
+                        const opacitySpring = getSpring('fast', reduced);
+                        return {
+                          scale: wordSpring,
+                          y: wordSpring,
+                          filter: wordSpring,
+                          opacity: opacitySpring,
+                        };
+                      })()}
                     >
                       {word.text}{' '}
                     </motion.span>

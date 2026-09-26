@@ -11,7 +11,26 @@
   --font-display: "Space Grotesk", sans-serif;
   --color-accent: #8b5cf6;
   --color-accent-glow: rgba(139, 92, 246, 0.4);
-  --animate-fade-in: fade-in 0.3s ease-out;
+  
+  /* Motion tokens */
+  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);        /* Spring approximation for CSS */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);         /* Standard ease-out */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);     /* Symmetric for reversible */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);      /* Panel/sheet easing */
+  
+  --duration-instant: 50ms;      /* Press feedback */
+  --duration-fast: 150ms;        /* Hover, small transitions */
+  --duration-base: 250ms;        /* Standard UI */
+  --duration-slow: 350ms;        /* Modals, drawers, panels */
+  --duration-slower: 500ms;      /* Marketing, onboarding */
+  
+  /* Spring perceptual durations (for Framer Motion) */
+  --spring-fast: 0.15;           /* Press/tap */
+  --spring-base: 0.25;           /* Standard spring */
+  --spring-slow: 0.35;           /* Panels, line entrances */
+  --spring-slower: 0.5;          /* Marketing */
+  
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-out);
   @keyframes fade-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
@@ -243,8 +262,7 @@ body {
 /* ── Config panel ─────────────────────────────────── */
 .config-panel {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
+  /* Position controlled by inline style from component */
   background: rgba(20,20,20,0.95);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
@@ -252,6 +270,7 @@ body {
   width: 320px;
   backdrop-filter: blur(20px);
   z-index: 100;
+  /* Transform origin set inline */
 }
 .config-panel h3 {
   font-size: 0.875rem;
@@ -275,4 +294,24 @@ body {
   color: rgba(255,255,255,0.4);
   display: block;
   margin-bottom: 2px;
+}
+
+/* ── Reduced Motion ────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Framer Motion spring override via CSS variable */
+  :root {
+    --spring-fast: 0;
+    --spring-base: 0;
+    --spring-slow: 0;
+    --spring-slower: 0;
+  }
 }

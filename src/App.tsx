@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { LyricsView } from './components/LyricsView';
 import { PlayerControls } from './components/PlayerControls';
 import { TrackList } from './components/TrackList';
@@ -19,6 +19,8 @@ export default function App() {
     spotifyClientId: '',
     spotifyClientSecret: '',
   });
+  
+  const configTriggerRef = useRef<HTMLButtonElement>(null);
 
   const loadFiles = useCallback(async () => {
     console.log('[renderer] loadFiles called');
@@ -163,6 +165,7 @@ export default function App() {
           </span>
         </div>
         <button
+          ref={configTriggerRef}
           onClick={() => setShowConfig(true)}
           style={{
             background: 'none',
@@ -289,6 +292,7 @@ export default function App() {
         onClose={() => setShowConfig(false)}
         onSave={handleConfigSave}
         initialConfig={config}
+        triggerRef={configTriggerRef}
       />
     </div>
   );
