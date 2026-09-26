@@ -89,7 +89,9 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
               key={idx}
               className="lyric-line"
               onClick={() => {
-                onSeek?.(line.startTime);
+                // Seek to the first word of the line for better accuracy
+                const seekTime = line.words[0]?.startTime ?? line.startTime;
+                onSeek?.(seekTime);
               }}
               initial={initial}
               animate={animate}
@@ -164,7 +166,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
           {attribution.uploader && (
             <>
               {' · uploaded by '}
-              <a href={attribution.uploader.url} target="_blank" rel="noreferrer">
+              <a href={attribution.uploader.url} target="_blank" rel="noopener noreferrer">
                 {attribution.uploader.username}
               </a>
             </>
@@ -172,7 +174,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
           {attribution.maker && (
             <>
               {' · made by '}
-              <a href={attribution.maker.url} target="_blank" rel="noreferrer">
+              <a href={attribution.maker.url} target="_blank" rel="noopener noreferrer">
                 {attribution.maker.username}
               </a>
             </>

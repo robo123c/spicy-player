@@ -13,9 +13,10 @@ interface TrackListProps {
   onLoadFolder: () => void;
   onRemoveTrack: (trackId: string) => void;
   onClearLibrary: () => void;
+  folderLoading?: { current: number; total: number; currentFile: string } | null;
 }
 
-export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder, onRemoveTrack, onClearLibrary }) => {
+export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder, onRemoveTrack, onClearLibrary, folderLoading }) => {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -57,6 +58,14 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
             </button>
           </div>
         </div>
+        {folderLoading && (
+          <div style={{ padding: '0.5rem 1.25rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>
+            Loading folder: {folderLoading.current}/{folderLoading.total} — {folderLoading.currentFile}
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${(folderLoading.current / folderLoading.total) * 100}%`, background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', borderRadius: 2, transition: 'width 0.1s linear' }} />
+            </div>
+          </div>
+        )}
         <div style={{ position: 'relative' }}>
           {isSearching ? (
             <IconLoader stroke={2} size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#8b5cf6', animation: 'spin 1s linear infinite' }} />

@@ -1,4 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LyricsView } from './components/LyricsView';
+import { PlayerControls } from './components/PlayerControls';
+import { TrackList } from './components/TrackList';
+import { ConfigPanel } from './components/ConfigPanel';
+import { useAudioPlayer } from './hooks/useAudioPlayer';
+import { useLyrics } from './hooks/useLyrics';
+import { useReducedMotion, getSpring } from '@/lib/motion';
+import { IconFile, IconFolder, IconMusic } from '@tabler/icons-react';
+import type { TrackInfo } from './types';
 
 // Extend Window interface for electron
 declare global {
@@ -12,14 +22,6 @@ declare global {
     };
   }
 }
-import { LyricsView } from './components/LyricsView';
-import { PlayerControls } from './components/PlayerControls';
-import { TrackList } from './components/TrackList';
-import { ConfigPanel } from './components/ConfigPanel';
-import { useAudioPlayer } from './hooks/useAudioPlayer';
-import { useLyrics } from './hooks/useLyrics';
-import type { TrackInfo } from './types';
-
 export default function App() {
   const audio = useAudioPlayer();
   const { lines, attribution, isLoading, error, fetchLyricsForTrack } = useLyrics();
@@ -32,6 +34,8 @@ export default function App() {
     spotifyClientId: '',
     spotifyClientSecret: '',
   });
+  const [folderLoading, setFolderLoading] = useState<{ current: number; total: number; currentFile: string } | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   const configTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -96,14 +100,23 @@ export default function App() {
       return;
     }
     
+    setFolderLoading({ current: 0, total: audioFiles.length, currentFile: '' });
+    
     const newTracks: TrackInfo[] = [];
-    for (const filePath of audioFiles) {
+    for (let i = 0; i < audioFiles.length; i++) {
+      const filePath = audioFiles[i];
+      setFolderLoading({ current: i + 1, total: audioFiles.length, currentFile: filePath.split('/').pop() || filePath });
       const meta = await (window as any).electron?.invoke?.('get-track-metadata', filePath);
       if (meta) {
         newTracks.push({ ...meta, localPath: filePath });
       }
+      // Yield to main thread every 10 files
+      if (i % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     }
     
+    setFolderLoading(null);
     setTracks((prev) => [...newTracks, ...prev]);
     
     if (newTracks.length > 0 && !audio.currentTrack) {
@@ -254,6 +267,19 @@ export default function App() {
     });
   });
 
+  // First-run onboarding
+  useEffect(() => {
+    const hasLoadedTracks = localStorage.getItem('spicyplayer-has-loaded');
+    if (!hasLoadedTracks && tracks.length === 0) {
+      setShowOnboarding(true);
+    }
+  }, [tracks.length]);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('spicyplayer-has-loaded', 'true');
+    setShowOnboarding(false);
+  };
+
   const activeTrack = tracks.find((t) => (t.id || t.filePath) === currentTrackId);
 
   return (
@@ -299,6 +325,7 @@ export default function App() {
             onLoadFolder={loadFolder}
             onRemoveTrack={removeTrack}
             onClearLibrary={clearLibrary}
+            folderLoading={folderLoading}
           />
         </div>
 
@@ -404,6 +431,111 @@ export default function App() {
         initialConfig={config}
         triggerRef={configTriggerRef}
       />
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <motion.div
+          key="onboarding"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            style={{
+              background: 'rgba(20,20,20,0.98)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: '2rem',
+              maxWidth: 400,
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={getSpring('slow', useReducedMotion())}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '3rem' }}>🎵</span>
+              <h2 style={{ marginTop: '1rem', fontSize: '1.5rem', fontWeight: 700 }}>Welcome to SpicyPlayer</h2>
+              <p style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
+                Word-synced lyrics for your music library
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconFile stroke={2} size={24} color="#8b5cf6" />
+                </div>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Load Music Files</strong>
+                  <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Select individual audio files (MP3, FLAC, M4A, etc.)</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconFolder stroke={2} size={24} color="#8b5cf6" />
+                </div>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Load Music Folder</strong>
+                  <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Recursively scan a folder for all audio files</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconMusic stroke={2} size={24} color="#8b5cf6" />
+                </div>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Synced Lyrics</strong>
+                  <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Automatic word-by-word lyrics from SpicyLyrics</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => { setShowConfig(true); handleOnboardingComplete(); }}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: 8,
+                  background: 'rgba(139,92,246,0.2)',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  color: '#8b5cf6',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Open Settings
+              </button>
+              <button
+                onClick={handleOnboardingComplete}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: 8,
+                  background: 'rgba(139,92,246,0.8)',
+                  border: 'none',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Get Started
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

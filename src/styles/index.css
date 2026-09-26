@@ -138,6 +138,10 @@ body {
   background: rgba(139,92,246,1);
   box-shadow: 0 0 20px rgba(139,92,246,0.4);
 }
+.ctrl-btn.play-btn:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 3px;
+}
 
 /* ── Progress bar ─────────────────────────────────── */
 .progress-track {
@@ -240,7 +244,10 @@ body {
   transition: background 0.15s ease;
 }
 .track-item:hover { background: rgba(255,255,255,0.05); }
-.track-item.active { background: rgba(139,92,246,0.1); }
+.track-item.active { 
+  background: rgba(139,92,246,0.2);
+  border-left: 3px solid #8b5cf6;
+}
 
 .track-info { flex: 1; min-width: 0; }
 .track-title {
