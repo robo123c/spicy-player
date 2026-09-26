@@ -6,7 +6,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\"",
-    "dev:electron": "npm run dev & electron .",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && npx tsc electron/main.ts electron/preload.ts --outDir electron --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck && electron .\"",
     "build": "npx tsc electron/main.ts electron/preload.ts --outDir electron --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck && node node_modules/.bin/vite build && electron-builder",
     "preview": "vite preview",
     "dist": "vite build && electron-builder",
@@ -43,7 +43,8 @@
     "music-metadata": ">=10.0.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "wait-on": "^9.1.0"
   },
   "engines": {
     "node": ">=20"
