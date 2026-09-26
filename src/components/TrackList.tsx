@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconMusic, IconSearch, IconX, IconFolder, IconFile, IconLoader, IconTrash } from '@tabler/icons-react';
+import { IconMusic, IconSearch, IconX, IconFolder, IconFile, IconLoader, IconTrash, IconEdit } from '@tabler/icons-react';
 import type { TrackInfo } from '@/types';
 import { useReducedMotion, getSpring } from '@/lib/motion';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -13,14 +13,18 @@ interface TrackListProps {
   onLoadFolder: () => void;
   onRemoveTrack: (trackId: string) => void;
   onClearLibrary: () => void;
+  onEditTrack: (trackId: string, title: string, artist: string) => void;
   folderLoading?: { current: number; total: number; currentFile: string } | null;
 }
 
-export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder, onRemoveTrack, onClearLibrary, folderLoading }) => {
+export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder, onRemoveTrack, onClearLibrary, onEditTrack, folderLoading }) => {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string } | null>(null);
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editArtist, setEditArtist] = useState('');
   
   const debouncedSetQuery = useDebounce((q: string) => {
     setDebouncedQuery(q);
@@ -39,6 +43,35 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
         `${t.title} ${t.artist}`.toLowerCase().includes(debouncedQuery.toLowerCase())
       )
     : tracks;
+
+  const handleEditClick = (e: React.MouseEvent, track: TrackInfo) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingTrackId(track.id || track.filePath || '');
+    setEditTitle(track.title);
+    setEditArtist(track.artist);
+  };
+
+  const handleEditSave = (trackId: string) => {
+    onEditTrack(trackId, editTitle, editArtist);
+    setEditingTrackId(null);
+    setEditTitle('');
+    setEditArtist('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingTrackId(null);
+    setEditTitle('');
+    setEditArtist('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, trackId: string) => {
+    if (e.key === 'Enter') {
+      handleEditSave(trackId);
+    } else if (e.key === 'Escape') {
+      handleEditCancel();
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -174,7 +207,36 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
                 setContextMenu({ x: e.clientX, y: e.clientY, trackId: track.id || track.filePath || '' });
               };
               
-              return (
+              const handleEditClick = (e: React.MouseEvent, track: TrackInfo) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingTrackId(track.id || track.filePath || '');
+    setEditTitle(track.title);
+    setEditArtist(track.artist);
+  };
+
+  const handleEditSave = (trackId: string) => {
+    onEditTrack(trackId, editTitle, editArtist);
+    setEditingTrackId(null);
+    setEditTitle('');
+    setEditArtist('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingTrackId(null);
+    setEditTitle('');
+    setEditArtist('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, trackId: string) => {
+    if (e.key === 'Enter') {
+      handleEditSave(trackId);
+    } else if (e.key === 'Escape') {
+      handleEditCancel();
+    }
+  };
+
+  return (
               <motion.div
                 key={track.id || track.filePath}
                 className={`track-item ${currentTrackId === (track.id || track.filePath) ? 'active' : ''}`}
@@ -183,20 +245,62 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
                 whileHover={{ background: 'rgba(255,255,255,0.05)' }}
                 whileTap={{ scale: 0.98 }}
               >
-                {track.coverUrl ? (
+                {(editingTrackId === (track.id || track.filePath)) ? (
+                  <div style={{ width: 40, height: 40, borderRadius: 6, flexShrink: 0 }} />
+                ) : track.coverUrl ? (
                   <img
                     src={track.coverUrl}
                     alt=""
                     style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
                   />
                 ) : (
-                  <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(255,255,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <IconMusic stroke={2} size={16} />
-                  </div>
+                  <div className="skeleton skeleton-sm" style={{ width: 40, height: 40, flexShrink: 0 }} />
                 )}
-                <div className="track-info">
-                  <div className="track-title">{track.title}</div>
-                  <div className="track-artist">{track.artist}</div>
+                <div className="track-info" style={{ flex: 1, minWidth: 0 }}>
+                  {editingTrackId === (track.id || track.filePath) ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyDown(e, track.id || track.filePath || '')}
+                        onBlur={() => handleEditSave(track.id || track.filePath || '')}
+                        autoFocus
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          background: 'rgba(139,92,246,0.1)',
+                          color: '#fff',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          width: '100%',
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={editArtist}
+                        onChange={(e) => setEditArtist(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyDown(e, track.id || track.filePath || '')}
+                        onBlur={() => handleEditSave(track.id || track.filePath || '')}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          background: 'rgba(139,92,246,0.1)',
+                          color: 'rgba(255,255,255,0.7)',
+                          fontSize: '0.75rem',
+                          outline: 'none',
+                          width: '100%',
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="track-title">{track.title}</div>
+                      <div className="track-artist">{track.artist}</div>
+                    </>
+                  )}
                 </div>
               </motion.div>
             );
@@ -225,6 +329,30 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={getSpring('fast', useReducedMotion())}
               >
+                <button
+                  onClick={() => {
+                    const track = tracks.find(t => (t.id || t.filePath) === contextMenu.trackId);
+                    if (track) handleEditClick({ preventDefault: () => {}, stopPropagation: () => {} } as any, track);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 1rem',
+                    borderRadius: 4,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#8b5cf6',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(139,92,246,0.1)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <IconEdit stroke={2} size={14} /> Edit Track
+                </button>
                 <button
                   onClick={() => {
                     onRemoveTrack(contextMenu.trackId);

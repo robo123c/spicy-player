@@ -7,7 +7,8 @@ import { ConfigPanel } from './components/ConfigPanel';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useLyrics } from './hooks/useLyrics';
 import { useReducedMotion, getSpring } from '@/lib/motion';
-import { IconFile, IconFolder, IconMusic } from '@tabler/icons-react';
+import { IconFile, IconFolder, IconMusic, IconList } from '@tabler/icons-react';
+import { QueuePanel } from './components/QueuePanel';
 import type { TrackInfo } from './types';
 
 // Extend Window interface for electron
@@ -36,6 +37,8 @@ export default function App() {
   });
   const [folderLoading, setFolderLoading] = useState<{ current: number; total: number; currentFile: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [queue, setQueue] = useState<TrackInfo[]>([]);
+  const [showQueue, setShowQueue] = useState(false);
   
   const configTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -135,12 +138,22 @@ export default function App() {
     audio.loadTrack(track);
     audio.play();
 
+    // Add to queue if not already there
+    setQueue((prev) => {
+      const exists = prev.some(t => (t.id || t.filePath) === (track.id || track.filePath));
+      if (!exists) {
+        return [...prev, track];
+      }
+      return prev;
+    });
+
     // Fetch lyrics automatically
     fetchLyricsForTrack({ title: track.title, artist: track.artist, duration: track.duration });
   }, [audio, fetchLyricsForTrack]);
 
   const removeTrack = useCallback((trackId: string) => {
     setTracks((prev) => prev.filter((t) => (t.id || t.filePath) !== trackId));
+    setQueue((prev) => prev.filter((t) => (t.id || t.filePath) !== trackId));
     // If current track was removed, clear selection
     if (currentTrackId === trackId) {
       setCurrentTrackId(null);
@@ -148,8 +161,22 @@ export default function App() {
     }
   }, [audio, currentTrackId]);
 
+  const editTrack = useCallback((trackId: string, title: string, artist: string) => {
+    setTracks((prev) =>
+      prev.map((t) =>
+        (t.id || t.filePath) === trackId ? { ...t, title, artist } : t
+      )
+    );
+    setQueue((prev) =>
+      prev.map((t) =>
+        (t.id || t.filePath) === trackId ? { ...t, title, artist } : t
+      )
+    );
+  }, []);
+
   const clearLibrary = useCallback(() => {
     setTracks([]);
+    setQueue([]);
     setCurrentTrackId(null);
     audio.unload();
   }, [audio]);
@@ -169,6 +196,19 @@ export default function App() {
       selectTrack(prev);
     }
   }, [tracks, currentTrackId, selectTrack]);
+
+  const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
+    setQueue((prev) => {
+      const newQueue = [...prev];
+      const [removed] = newQueue.splice(fromIndex, 1);
+      newQueue.splice(toIndex, 0, removed);
+      return newQueue;
+    });
+  }, []);
+
+  const removeFromQueue = useCallback((trackId: string) => {
+    setQueue((prev) => prev.filter((t) => (t.id || t.filePath) !== trackId));
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -311,6 +351,20 @@ export default function App() {
         >
           ⚙️
         </button>
+        <button
+          onClick={() => setShowQueue(!showQueue)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: showQueue ? '#8b5cf6' : 'rgba(255,255,255,0.4)',
+            cursor: 'pointer',
+            padding: 4,
+            marginLeft: 8,
+          }}
+          aria-label={showQueue ? 'Hide queue' : 'Show queue'}
+        >
+          <IconList stroke={2} size={20} />
+        </button>
       </header>
 
       {/* Main area */}
@@ -325,6 +379,7 @@ export default function App() {
             onLoadFolder={loadFolder}
             onRemoveTrack={removeTrack}
             onClearLibrary={clearLibrary}
+            onEditTrack={editTrack}
             folderLoading={folderLoading}
           />
         </div>
@@ -344,6 +399,12 @@ export default function App() {
                   boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 60px ${attribution ? 'rgba(139,92,246,0.1)' : 'rgba(0,0,0,0.4)'}`,
                 }}
               />
+            ) : activeTrack ? (
+              <div className="skeleton skeleton-lg" style={{
+                width: 240, height: 240,
+                margin: '0 auto',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              }} />
             ) : (
               <div style={{
                 width: 240, height: 240, borderRadius: 12,
@@ -422,6 +483,17 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Queue panel */}
+      <QueuePanel
+        queue={queue}
+        currentTrackId={currentTrackId}
+        onSelect={selectTrack}
+        onRemove={removeFromQueue}
+        onReorder={reorderQueue}
+        onClose={() => setShowQueue(false)}
+        isOpen={showQueue}
+      />
 
       {/* Config panel */}
       <ConfigPanel

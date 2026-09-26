@@ -249,6 +249,32 @@ body {
   border-left: 3px solid #8b5cf6;
 }
 
+/* Skeleton loader for album art */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+.skeleton-sm {
+  border-radius: 6px;
+}
+
+.skeleton-lg {
+  border-radius: 12px;
+}
+
 .track-info { flex: 1; min-width: 0; }
 .track-title {
   font-size: 0.875rem;
