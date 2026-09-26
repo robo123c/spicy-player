@@ -1,4 +1,17 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+
+// Extend Window interface for electron
+declare global {
+  interface Window {
+    electron?: {
+      invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+      send: (channel: string, ...args: unknown[]) => void;
+      on: (channel: string, callback: (...args: unknown[]) => void) => () => void;
+      onMediaKey: (action: string, callback: () => void) => () => void;
+      isDev: () => boolean;
+    };
+  }
+}
 import { LyricsView } from './components/LyricsView';
 import { PlayerControls } from './components/PlayerControls';
 import { TrackList } from './components/TrackList';
@@ -113,6 +126,21 @@ export default function App() {
     fetchLyricsForTrack({ title: track.title, artist: track.artist, duration: track.duration });
   }, [audio, fetchLyricsForTrack]);
 
+  const removeTrack = useCallback((trackId: string) => {
+    setTracks((prev) => prev.filter((t) => (t.id || t.filePath) !== trackId));
+    // If current track was removed, clear selection
+    if (currentTrackId === trackId) {
+      setCurrentTrackId(null);
+      audio.unload();
+    }
+  }, [audio, currentTrackId]);
+
+  const clearLibrary = useCallback(() => {
+    setTracks([]);
+    setCurrentTrackId(null);
+    audio.unload();
+  }, [audio]);
+
   const nextTrack = useCallback(() => {
     const idx = tracks.findIndex((t) => (t.id || t.filePath) === currentTrackId);
     if (idx < tracks.length - 1) {
@@ -128,6 +156,86 @@ export default function App() {
       selectTrack(prev);
     }
   }, [tracks, currentTrackId, selectTrack]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          audio.togglePlayPause();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          audio.seek(audio.currentTime + 10);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          audio.seek(audio.currentTime - 10);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          audio.setVolume(Math.min(1, audio.volume + 0.1));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          audio.setVolume(Math.max(0, audio.volume - 0.1));
+          break;
+        case 'KeyJ':
+          e.preventDefault();
+          audio.seek(audio.currentTime - 10);
+          break;
+        case 'KeyL':
+          e.preventDefault();
+          audio.seek(audio.currentTime + 10);
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          audio.setVolume(audio.volume > 0 ? 0 : 0.5);
+          break;
+        case 'KeyN':
+          e.preventDefault();
+          nextTrack();
+          break;
+        case 'KeyP':
+          e.preventDefault();
+          prevTrack();
+          break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [audio, nextTrack, prevTrack]);
+
+  // Global media key listeners
+  useEffect(() => {
+    const cleanupPlayPause = window.electron?.onMediaKey('playpause', () => {
+      audio.togglePlayPause();
+    });
+    const cleanupNext = window.electron?.onMediaKey('next', () => {
+      nextTrack();
+    });
+    const cleanupPrev = window.electron?.onMediaKey('prev', () => {
+      prevTrack();
+    });
+    const cleanupStop = window.electron?.onMediaKey('stop', () => {
+      audio.pause();
+      audio.seek(0);
+    });
+    
+    return () => {
+      cleanupPlayPause?.();
+      cleanupNext?.();
+      cleanupPrev?.();
+      cleanupStop?.();
+    };
+  }, [audio, nextTrack, prevTrack]);
 
   const handleConfigSave = useCallback((newConfig: Record<string, string>) => {
     setConfig(newConfig);
@@ -189,6 +297,8 @@ export default function App() {
             onSelect={selectTrack}
             onLoadFiles={loadFiles}
             onLoadFolder={loadFolder}
+            onRemoveTrack={removeTrack}
+            onClearLibrary={clearLibrary}
           />
         </div>
 

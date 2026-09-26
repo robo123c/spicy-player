@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron';
 import path from 'path';
 import fs from 'fs'
 import { readdir, stat } from 'fs/promises';
@@ -17,6 +17,7 @@ app.commandLine.appendSwitch('ozone-platform', 'x11');
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPICY_API = 'https://api.spicylyrics.org/v1/lyrics';
 const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
+const BOUNDS_FILE = path.join(app.getPath('userData'), 'window-bounds.json');
 
 function loadConfig(): Record<string, string> {
   try {
@@ -29,6 +30,19 @@ function loadConfig(): Record<string, string> {
 
 function saveConfig(config: Record<string, string>) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+function loadBounds(): { width: number; height: number; x?: number; y?: number } | null {
+  try {
+    if (fs.existsSync(BOUNDS_FILE)) {
+      return JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf-8'));
+    }
+  } catch {}
+  return null;
+}
+
+function saveBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
+  fs.writeFileSync(BOUNDS_FILE, JSON.stringify(bounds, null, 2));
 }
 
 let spotifyToken: string | null = null;
@@ -168,9 +182,13 @@ ipcMain.handle('config:set', (_event, config: Record<string, string>) => {
 });
 
 function createWindow() {
+  const savedBounds = loadBounds();
+  
   const win = new BrowserWindow({
-    width: 1400,
-    height: 850,
+    width: savedBounds?.width || 1400,
+    height: savedBounds?.height || 850,
+    x: savedBounds?.x,
+    y: savedBounds?.y,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#0a0a0a',
@@ -182,6 +200,15 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // Save window bounds on resize/move
+  const saveWindowBounds = () => {
+    const bounds = win.getBounds();
+    saveBounds(bounds);
+  };
+  
+  win.on('resize', saveWindowBounds);
+  win.on('move', saveWindowBounds);
   const startUrl = process.env.NODE_ENV === 'development'
     ? 'http://localhost:5173'
     : `file://${path.join(__dirname, '../build/index.html')}`;
@@ -189,6 +216,37 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') win.webContents.openDevTools({ mode: 'detach' });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  
+  // Register global media keys
+  const registerMediaKeys = () => {
+    globalShortcut.register('MediaPlayPause', () => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) win.webContents.send('media-key:playpause');
+    });
+    globalShortcut.register('MediaNextTrack', () => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) win.webContents.send('media-key:next');
+    });
+    globalShortcut.register('MediaPreviousTrack', () => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) win.webContents.send('media-key:prev');
+    });
+    globalShortcut.register('MediaStop', () => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) win.webContents.send('media-key:stop');
+    });
+  };
+  
+  registerMediaKeys();
+  
+  // Re-register on focus (some OS unregister when app loses focus)
+  app.on('browser-window-focus', registerMediaKeys);
+});
+
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('window-all-closed', () => { 
+  globalShortcut.unregisterAll();
+  if (process.platform !== 'darwin') app.quit(); 
+});

@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { IconPlayerPlay, IconPlayerPause, IconPlayerSkipBack, IconPlayerSkipForward, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useReducedMotion, getSpring } from '@/lib/motion';
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -20,6 +21,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 }) => {
   const sliderRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const debouncedSeek = useDebounce(onSeek, 50);
 
   const handleSliderClick = useCallback((e: React.MouseEvent) => {
@@ -29,11 +31,17 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     debouncedSeek(pct * duration);
   }, [duration, debouncedSeek]);
 
-  const handleSliderMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !sliderRef.current || !duration) return;
+  const handleSliderMove = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+    if (!sliderRef.current || !duration) return;
     const rect = sliderRef.current.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    debouncedSeek(pct * duration);
+    const clientX = 'nativeEvent' in e ? e.clientX : e.clientX;
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    
+    if (isDragging) {
+      debouncedSeek(pct * duration);
+    } else {
+      setHoverPosition(pct * duration);
+    }
   }, [isDragging, duration, debouncedSeek]);
 
   useEffect(() => {
@@ -46,6 +54,10 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       window.removeEventListener('mouseup', () => setIsDragging(false));
     };
   }, [isDragging, handleSliderMove]);
+
+  const handleSliderLeave = useCallback(() => {
+    setHoverPosition(null);
+  }, []);
 
   const formatTime = (s: number) => {
     if (!s || isNaN(s)) return '--:--';
@@ -61,12 +73,20 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         ref={sliderRef}
         className="progress-track"
         onClick={handleSliderClick}
+        onMouseMove={handleSliderMove}
+        onMouseLeave={handleSliderLeave}
+        onMouseDown={() => setIsDragging(true)}
         style={{ marginBottom: '1rem' }}
       >
         <div
           className="progress-fill"
           style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
         />
+        {hoverPosition !== null && (
+          <div className="progress-tooltip" style={{ left: `${(hoverPosition / duration) * 100}%` }}>
+            {formatTime(hoverPosition)}
+          </div>
+        )}
       </div>
 
       {/* Time labels */}
@@ -105,7 +125,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             min={0} max={1} step={0.01}
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            style={{ width: 80, accentColor: '#8b5cf6' }}
+            style={{ width: 140, accentColor: '#8b5cf6', cursor: 'pointer' }}
           />
         </div>
       </div>

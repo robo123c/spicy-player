@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconMusic, IconSearch, IconX, IconFolder } from '@tabler/icons-react';
+import { IconMusic, IconSearch, IconX, IconFolder, IconFile, IconLoader, IconTrash } from '@tabler/icons-react';
 import type { TrackInfo } from '@/types';
 import { useReducedMotion, getSpring } from '@/lib/motion';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface TrackListProps {
   tracks: TrackInfo[];
@@ -10,14 +11,31 @@ interface TrackListProps {
   onSelect: (track: TrackInfo) => void;
   onLoadFiles: () => void;
   onLoadFolder: () => void;
+  onRemoveTrack: (trackId: string) => void;
+  onClearLibrary: () => void;
 }
 
-export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder }) => {
+export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, onSelect, onLoadFiles, onLoadFolder, onRemoveTrack, onClearLibrary }) => {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string } | null>(null);
+  
+  const debouncedSetQuery = useDebounce((q: string) => {
+    setDebouncedQuery(q);
+    setIsSearching(false);
+  }, 150);
 
-  const filtered = query
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    setIsSearching(true);
+    debouncedSetQuery(value);
+  };
+
+  const filtered = debouncedQuery
     ? tracks.filter((t) =>
-        `${t.title} ${t.artist}`.toLowerCase().includes(query.toLowerCase())
+        `${t.title} ${t.artist}`.toLowerCase().includes(debouncedQuery.toLowerCase())
       )
     : tracks;
 
@@ -28,21 +46,28 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <h2 style={{ fontSize: '0.875rem', fontWeight: 600 }}>Your Library</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="ctrl-btn" onClick={onLoadFiles} style={{ width: 32, height: 32 }} title="Load Audio Files">
+            <button className="ctrl-btn" onClick={onLoadFiles} style={{ width: 32, height: 32 }} title="Load Audio Files" aria-label="Load Audio Files">
+              <IconFile stroke={2} size={16} />
+            </button>
+            <button className="ctrl-btn" onClick={onLoadFolder} style={{ width: 32, height: 32 }} title="Load Music Folder" aria-label="Load Music Folder">
               <IconFolder stroke={2} size={16} />
             </button>
-            <button className="ctrl-btn" onClick={onLoadFolder} style={{ width: 32, height: 32 }} title="Load Folder">
-              <IconFolder stroke={2} size={16} />
+            <button className="ctrl-btn" onClick={onClearLibrary} style={{ width: 32, height: 32 }} title="Clear Library" aria-label="Clear Library">
+              <IconTrash stroke={2} size={16} />
             </button>
           </div>
         </div>
         <div style={{ position: 'relative' }}>
-          <IconSearch stroke={2} size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
+          {isSearching ? (
+            <IconLoader stroke={2} size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#8b5cf6', animation: 'spin 1s linear infinite' }} />
+          ) : (
+            <IconSearch stroke={2} size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
+          )}
           <input
             type="text"
             placeholder="Search tracks..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleSearchChange}
             style={{
               width: '100%',
               padding: '6px 10px 6px 28px',
@@ -133,31 +158,91 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, currentTrackId, on
             </motion.div>
           </AnimatePresence>
         ) : (
-          filtered.map((track) => (
-            <motion.div
-              key={track.id || track.filePath}
-              className={`track-item ${currentTrackId === (track.id || track.filePath) ? 'active' : ''}`}
-              onClick={() => onSelect(track)}
-              whileHover={{ background: 'rgba(255,255,255,0.05)' }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {track.coverUrl ? (
-                <img
-                  src={track.coverUrl}
-                  alt=""
-                  style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
-                />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(255,255,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <IconMusic stroke={2} size={16} />
+          <>
+            {filtered.map((track) => {
+              const handleContextMenu = (e: React.MouseEvent) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, trackId: track.id || track.filePath || '' });
+              };
+              
+              return (
+              <motion.div
+                key={track.id || track.filePath}
+                className={`track-item ${currentTrackId === (track.id || track.filePath) ? 'active' : ''}`}
+                onClick={() => onSelect(track)}
+                onContextMenu={handleContextMenu}
+                whileHover={{ background: 'rgba(255,255,255,0.05)' }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {track.coverUrl ? (
+                  <img
+                    src={track.coverUrl}
+                    alt=""
+                    style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(255,255,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconMusic stroke={2} size={16} />
+                  </div>
+                )}
+                <div className="track-info">
+                  <div className="track-title">{track.title}</div>
+                  <div className="track-artist">{track.artist}</div>
                 </div>
-              )}
-              <div className="track-info">
-                <div className="track-title">{track.title}</div>
-                <div className="track-artist">{track.artist}</div>
-              </div>
-            </motion.div>
-          ))
+              </motion.div>
+            );
+          })}
+
+            {/* Context Menu */}
+            {contextMenu && (
+              <motion.div
+                key="context-menu"
+                className="context-menu"
+                style={{
+                  position: 'fixed',
+                  left: contextMenu.x,
+                  top: contextMenu.y,
+                  zIndex: 1000,
+                  background: 'rgba(20,20,20,0.98)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  padding: '0.5rem',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  backdropFilter: 'blur(20px)',
+                  minWidth: 160,
+                }}
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={getSpring('fast', useReducedMotion())}
+              >
+                <button
+                  onClick={() => {
+                    onRemoveTrack(contextMenu.trackId);
+                    setContextMenu(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 1rem',
+                    borderRadius: 4,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <IconTrash stroke={2} size={14} /> Remove Track
+                </button>
+              </motion.div>
+            )}
+          </>
         )}
       </div>
     </div>

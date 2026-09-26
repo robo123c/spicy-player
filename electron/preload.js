@@ -13,6 +13,12 @@ const electronAPI = {
         electron_1.ipcRenderer.on(channel, subscription);
         return () => electron_1.ipcRenderer.removeListener(channel, subscription);
     },
+    onMediaKey(action, callback) {
+        const channel = `media-key:${action}`;
+        const subscription = (_event) => callback();
+        electron_1.ipcRenderer.on(channel, subscription);
+        return () => electron_1.ipcRenderer.removeListener(channel, subscription);
+    },
     isDev() {
         return process.env.NODE_ENV === 'development';
     },

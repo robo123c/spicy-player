@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { IconExternalLink, IconX, IconTrash, IconSettings } from '@tabler/icons-react';
 import { useReducedMotion, getSpring } from '@/lib/motion';
 
@@ -15,6 +15,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose, onSav
   const reduced = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
   const [transformOrigin, setTransformOrigin] = useState('top right');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [spicyLyricsKey, setSpicyLyricsKey] = useState(initialConfig.spicyLyricsKey || '');
   const [spotifyClientId, setSpotifyClientId] = useState(initialConfig.spotifyClientId || '');
@@ -146,43 +147,66 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isOpen, onClose, onSav
       {testResult && <p style={{ fontSize: '0.7rem', color: testResult.includes('✓') ? '#22c55e' : '#ef4444', marginTop: '0.5rem' }}>{testResult}</p>}
 
       <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <label>Spotify Client ID</label>
-        <input
-          type="text"
-          placeholder="Client ID"
-          value={spotifyClientId}
-          onChange={(e) => setSpotifyClientId(e.target.value)}
-        />
-        <label style={{ marginTop: '0.5rem' }}>Spotify Client Secret</label>
-        <input
-          type="password"
-          placeholder="Client Secret"
-          value={spotifyClientSecret}
-          onChange={(e) => setSpotifyClientSecret(e.target.value)}
-        />
-        <div style={{ display: 'flex', gap: 8, marginTop: '0.5rem' }}>
-          <button onClick={handleTestSpotify} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', fontSize: '0.7rem', cursor: 'pointer' }}>
-            Test Credentials
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <label>Links</label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: '0.5rem', fontSize: '0.75rem' }}>
-          <a href="https://developers.spicylyrics.org" target="_blank" rel="noreferrer" style={{ color: 'rgba(139,92,246,0.7)', textDecoration: 'none' }}>
-            <IconExternalLink stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> SpicyLyrics Dashboard
-          </a>
-          <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" style={{ color: 'rgba(139,92,246,0.7)', textDecoration: 'none' }}>
-            <IconExternalLink stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Spotify Developer Dashboard
-          </a>
-        </div>
-      </div>
-
-      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={handleClearLibrary} style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer' }}>
-          <IconTrash stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Clear Library
+        <button 
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          style={{ width: '100%', padding: '0.5rem', borderRadius: 6, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <span>Advanced Settings</span>
+          <span style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>▼</span>
         </button>
+        
+        <AnimatePresence>
+          {showAdvanced && (
+            <motion.div
+              key="advanced"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={getSpring('base', reduced)}
+              style={{ overflow: 'hidden', marginTop: '0.75rem' }}
+            >
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <label>Spotify Client ID</label>
+                <input
+                  type="text"
+                  placeholder="Client ID"
+                  value={spotifyClientId}
+                  onChange={(e) => setSpotifyClientId(e.target.value)}
+                />
+                <label style={{ marginTop: '0.5rem' }}>Spotify Client Secret</label>
+                <input
+                  type="password"
+                  placeholder="Client Secret"
+                  value={spotifyClientSecret}
+                  onChange={(e) => setSpotifyClientSecret(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: '0.5rem' }}>
+                  <button onClick={handleTestSpotify} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', fontSize: '0.7rem', cursor: 'pointer' }}>
+                    Test Credentials
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <label>Links</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: '0.5rem', fontSize: '0.75rem' }}>
+                  <a href="https://developers.spicylyrics.org" target="_blank" rel="noreferrer" style={{ color: 'rgba(139,92,246,0.7)', textDecoration: 'none' }}>
+                    <IconExternalLink stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> SpicyLyrics Dashboard
+                  </a>
+                  <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" style={{ color: 'rgba(139,92,246,0.7)', textDecoration: 'none' }}>
+                    <IconExternalLink stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Spotify Developer Dashboard
+                  </a>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button onClick={handleClearLibrary} style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer' }}>
+                  <IconTrash stroke={1.5} size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Clear Library
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

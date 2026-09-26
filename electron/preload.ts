@@ -12,6 +12,12 @@ const electronAPI = {
     ipcRenderer.on(channel, subscription);
     return () => ipcRenderer.removeListener(channel, subscription);
   },
+  onMediaKey(action: string, callback: () => void) {
+    const channel = `media-key:${action}`;
+    const subscription = (_event: IpcRendererEvent) => callback();
+    ipcRenderer.on(channel, subscription);
+    return () => ipcRenderer.removeListener(channel, subscription);
+  },
   isDev(): boolean {
     return process.env.NODE_ENV === 'development';
   },

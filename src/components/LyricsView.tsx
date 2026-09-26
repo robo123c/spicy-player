@@ -15,12 +15,30 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
   const containerRef = useRef<HTMLDivElement>(null);
   const activeIndex = findActiveLineIndex(lines, currentTime);
 
-  // Scroll active line into view
+  // Scroll active line into view with proper padding
   useEffect(() => {
     if (activeIndex < 0 || !containerRef.current) return;
     const activeEl = containerRef.current.children[activeIndex] as HTMLElement;
-    if (activeEl) {
-      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!activeEl) return;
+    
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    
+    // Check if element is fully visible with 2-line padding (approx 80px)
+    const padding = 80;
+    const isFullyVisible = (
+      elRect.top >= containerRect.top + padding &&
+      elRect.bottom <= containerRect.bottom - padding
+    );
+    
+    if (!isFullyVisible) {
+      // Scroll to position with offset to keep 2 lines visible above/below
+      const scrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+      container.scrollTo({
+        top: Math.max(0, scrollTop),
+        behavior: 'smooth'
+      });
     }
   }, [activeIndex]);
 
@@ -59,6 +77,13 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
         
         const exit = { opacity: 0, y: -8, scale: 0.98 };
 
+        // Format timestamp for tooltip
+        const formatTooltipTime = (seconds: number) => {
+          const m = Math.floor(seconds / 60);
+          const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+          return `${m}:${s}`;
+        };
+
         return (
             <motion.div
               key={idx}
@@ -74,7 +99,12 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ lines, currentTime, attr
                 y: lineSpring,
                 scale: scaleSpring,
               }}
-              style={{ paddingLeft: '0.5em', paddingRight: '0.5em' }}
+              style={{ 
+                paddingLeft: '0.5em', 
+                paddingRight: '0.5em',
+                cursor: 'pointer',
+              }}
+              whileHover={{ textDecoration: 'underline' }}
             >
               <motion.p
                 style={{
