@@ -256,3 +256,52 @@ export function findActiveLineIndex(lines: LyricLine[], currentTime: number): nu
 }
 
 export { IDLE_SCALE };
+
+
+// Parse paxsenix Apple Music format into LyricLine[]
+export function parsePaxsenixLyrics(data: any): { lines: LyricLine[] } {
+  const lines: LyricLine[] = [];
+  
+  if (data.type === 'Syllable' && Array.isArray(data.content)) {
+    for (const item of data.content) {
+      if (!item.text || !Array.isArray(item.text)) continue;
+      if (item.background) continue;
+
+      const words = groupPaxsenixWords(item.text);
+      if (words.length === 0) continue;
+
+      const text = words.map((w) => w.text).join(' ');
+      const startTime = words[0].startTime;
+      const endTime = words[words.length - 1].endTime;
+
+      lines.push({ text, startTime, endTime, words });
+    }
+  }
+
+  lines.sort((a, b) => a.startTime - b.startTime);
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (lines[i].endTime > lines[i + 1].startTime) {
+      lines[i].endTime = lines[i + 1].startTime;
+    }
+  }
+
+  return { lines };
+}
+
+function groupPaxsenixWords(words: any[]): LyricLine['words'] {
+  const result: LyricLine['words'] = [];
+  for (const w of words) {
+    const text = w.text?.trim();
+    if (!text) continue;
+    const startTime = w.timestamp / 1000;
+    const endTime = w.endtime / 1000;
+    if (result.length === 0 || !w.part) {
+      result.push({ text, startTime, endTime, isPartOfWord: false });
+    } else {
+      const last = result[result.length - 1];
+      last.text += text;
+      last.endTime = endTime;
+    }
+  }
+  return result;
+}

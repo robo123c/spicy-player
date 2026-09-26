@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { SpotifyAPI } from '@/lib/spotifyAPI';
-import { parseSpicyLyrics } from '@/lib/lyricsParser';
+import { parsePaxsenixLyrics } from '@/lib/lyricsParser';
 import type { LyricLine, AttributionInfo } from '@/lib/lyricsParser';
 
 interface UseLyricsReturn {
@@ -17,18 +16,6 @@ export function useLyrics(): UseLyricsReturn {
   const [attribution, setAttribution] = useState<AttributionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const spotifyRef = useRef<SpotifyAPI | null>(null);
-
-  const getSpotify = useCallback(() => {
-    if (!spotifyRef.current) {
-      const cid = import.meta.env?.VITE_SPOTIFY_CLIENT_ID || '';
-      const secret = import.meta.env?.VITE_SPOTIFY_CLIENT_SECRET || '';
-      if (cid && secret) {
-        spotifyRef.current = new SpotifyAPI(cid, secret);
-      }
-    }
-    return spotifyRef.current;
-  }, []);
 
   const fetchLyricsForTrack = useCallback(async (track: { title: string; artist: string; duration?: number }) => {
     setIsLoading(true);
@@ -36,54 +23,64 @@ export function useLyrics(): UseLyricsReturn {
     setLines([]);
 
     try {
-      // Step 1: Find the Spotify track ID
-      let trackId: string | null = null;
-      const spotify = getSpotify();
+      // Step 1: Search iTunes for Apple Music track ID (free, no auth)
+      const searchQuery = track.title + ' ' + track.artist;
+      const searchResponse = await axios.get('https://itunes.apple.com/search', {
+        params: { term: searchQuery, entity: 'song', limit: 8, country: 'US' },
+        timeout: 10000,
+      });
 
-      if (spotify) {
-        const found = await spotify.findTrack(track.title, track.artist, track.duration ? track.duration * 1000 : undefined);
-        if (found?.spotifyTrackId) {
-          trackId = found.spotifyTrackId;
-        }
-      }
-
-      // Fallback: search via IPC
-      if (!trackId) {
-        const result = await (window as any).electron?.invoke?.('spotify:search', `${track.title} ${track.artist}`, track.duration ? track.duration * 1000 : undefined);
-        if (result?.id) {
-          trackId = result.id;
-        }
-      }
-
-      if (!trackId) {
-        setError('Could not find the track on Spotify');
+      const results = searchResponse.data?.results || [];
+      if (results.length === 0) {
+        setError('No matching track found on Apple Music');
         setIsLoading(false);
         return;
       }
 
-      // Step 2: Fetch lyrics from SpicyLyrics API
-      const data = await (window as any).electron?.invoke?.('spicylyrics:lyrics', trackId);
+      // Find best duration match (±5s)
+      let selectedTrack = results[0];
+      const durationMs = track.duration !== undefined ? track.duration * 1000 : undefined;
+      if (durationMs !== undefined) {
+        const matched = results.find((t: any) =>
+          Math.abs(t.trackTimeMillis - durationMs) <= 5000
+        );
+        if (matched) selectedTrack = matched;
+      }
 
-      if (!data || data.Status !== 200 || !data.Body) {
+      const appleMusicId = selectedTrack.trackId;
+      if (!appleMusicId) {
+        setError('No Apple Music track ID found');
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Fetch word-synced lyrics from paxsenix (Apple Music)
+      const lyricsResponse = await axios.get(
+        'https://lyrics.paxsenix.org/apple-music/lyrics?id=' + appleMusicId,
+        { timeout: 15000 }
+      );
+
+      const data = lyricsResponse.data;
+      if (!data || data.error) {
         setError('No lyrics found for this track');
         setIsLoading(false);
         return;
       }
 
-      // Step 3: Parse into line/word structures
-      const parsed = parseSpicyLyrics(data);
+      // Step 3: Convert paxsenix format to our internal format
+      const parsed = parsePaxsenixLyrics(data);
       setLines(parsed.lines);
       setAttribution({
-        provider: parsed.source === 'spicy_lyrics' ? 'Spicy Lyrics' : parsed.source,
-        uploader: parsed.attribution.uploader,
-        maker: parsed.attribution.maker,
+        provider: 'Apple Music (via paxsenix)',
+        uploader: undefined,
+        maker: undefined,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to fetch lyrics');
     } finally {
       setIsLoading(false);
     }
-  }, [getSpotify]);
+  }, []);
 
   return { lines, attribution, isLoading, error, fetchLyricsForTrack };
 }
